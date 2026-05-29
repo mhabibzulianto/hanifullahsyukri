@@ -1,0 +1,394 @@
+:root {
+  color: #101828;
+  background:
+    radial-gradient(circle at top left, rgba(184, 212, 255, 0.7), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(255, 231, 196, 0.75), transparent 28%),
+    linear-gradient(180deg, #f7f4ec 0%, #fcfbf7 100%);
+  font-family: "Georgia", "Times New Roman", serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.site-shell {
+  min-height: 100vh;
+  padding: 28px;
+}
+
+.site-header,
+.site-footer,
+.hero,
+.section-grid,
+.posts-section,
+.notes-section {
+  width: min(1160px, 100%);
+  margin: 0 auto;
+}
+
+.site-header,
+.site-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+}
+
+.site-header {
+  padding: 10px 0 24px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  padding: 0;
+}
+
+.brand span:last-child {
+  display: grid;
+}
+
+.brand strong {
+  font-size: 1.05rem;
+}
+
+.brand small {
+  color: #667085;
+  font-family: "Trebuchet MS", sans-serif;
+}
+
+.brand-mark,
+.note-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #111827;
+  color: #fff7ed;
+}
+
+.brand-mark {
+  width: 48px;
+  height: 48px;
+  font-family: "Trebuchet MS", sans-serif;
+  font-weight: 700;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-family: "Trebuchet MS", sans-serif;
+}
+
+.site-nav a {
+  color: #475467;
+}
+
+.admin-link,
+.primary-button,
+.secondary-button {
+  border-radius: 999px;
+  padding: 11px 18px;
+  border: 1px solid #d0d5dd;
+  background: white;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.primary-button {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+
+.secondary-button {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(10px);
+}
+
+.admin-link:hover,
+.primary-button:hover,
+.secondary-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(16, 24, 40, 0.08);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.4fr 0.9fr;
+  gap: 24px;
+  padding: 34px 0 42px;
+}
+
+.hero-copy,
+.hero-panel,
+.story-card,
+.quote-card,
+.post-card,
+.notes-section,
+.site-footer {
+  border: 1px solid rgba(16, 24, 40, 0.08);
+  background: rgba(255, 252, 247, 0.84);
+  box-shadow: 0 24px 60px rgba(103, 74, 31, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.hero-copy,
+.hero-panel,
+.story-card,
+.quote-card,
+.post-card,
+.notes-section {
+  border-radius: 28px;
+}
+
+.hero-copy {
+  padding: 44px;
+}
+
+.eyebrow,
+.section-label,
+.panel-label,
+.pill {
+  font-family: "Trebuchet MS", sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.76rem;
+}
+
+.eyebrow,
+.section-label,
+.panel-label {
+  color: #9a6b2f;
+}
+
+.hero-copy h1 {
+  font-size: clamp(2.6rem, 4vw, 5rem);
+  line-height: 0.98;
+  margin: 16px 0;
+  max-width: 11ch;
+}
+
+.hero-text {
+  max-width: 36rem;
+  color: #475467;
+  font-size: 1.05rem;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 28px;
+  flex-wrap: wrap;
+}
+
+.hero-panel {
+  padding: 32px;
+  background:
+    linear-gradient(180deg, rgba(17, 24, 39, 0.96), rgba(54, 65, 83, 0.94)),
+    linear-gradient(135deg, #111827, #1f2937);
+  color: #f9fafb;
+}
+
+.hero-panel ul {
+  padding-left: 18px;
+  margin: 18px 0 0;
+  display: grid;
+  gap: 12px;
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: 1fr 0.85fr;
+  gap: 24px;
+  padding-bottom: 24px;
+}
+
+.story-card,
+.quote-card,
+.post-card,
+.notes-section {
+  padding: 28px;
+}
+
+.story-card h2,
+.quote-card h2,
+.section-heading h2 {
+  margin: 10px 0 12px;
+  font-size: 2rem;
+}
+
+.story-card p,
+.quote-card blockquote,
+.post-card p,
+.note-item p,
+.site-footer p {
+  color: #475467;
+}
+
+.quote-card blockquote {
+  margin: 14px 0 0;
+  font-size: 1.15rem;
+  line-height: 1.7;
+}
+
+.posts-section {
+  padding: 28px 0;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: #7a4b11;
+  background: #fff2dd;
+}
+
+.post-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.post-card {
+  display: grid;
+  gap: 12px;
+}
+
+.post-card h3 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.post-card footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: "Trebuchet MS", sans-serif;
+  color: #667085;
+}
+
+.post-card footer a {
+  color: #9a6b2f;
+}
+
+.notes-section {
+  margin: 8px auto 28px;
+}
+
+.notes-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.note-item {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 14px;
+  align-items: start;
+  padding: 14px 0;
+  border-top: 1px solid rgba(16, 24, 40, 0.08);
+}
+
+.note-item:first-child {
+  border-top: 0;
+}
+
+.note-index {
+  width: 42px;
+  height: 42px;
+  background: #e7b56b;
+  color: #3e2a12;
+  font-family: "Trebuchet MS", sans-serif;
+  font-weight: 700;
+}
+
+.site-footer {
+  border-radius: 24px;
+  padding: 24px 28px;
+  margin-top: 28px;
+}
+
+@media (max-width: 900px) {
+  .hero,
+  .section-grid,
+  .post-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-heading,
+  .site-header,
+  .site-footer {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .site-nav {
+    flex-wrap: wrap;
+  }
+
+  .hero-copy {
+    padding: 30px;
+  }
+}
+
+@media (max-width: 640px) {
+  .site-shell {
+    padding: 18px;
+  }
+
+  .hero-copy,
+  .hero-panel,
+  .story-card,
+  .quote-card,
+  .post-card,
+  .notes-section,
+  .site-footer {
+    border-radius: 22px;
+    padding: 22px;
+  }
+
+  .hero-copy h1 {
+    font-size: 2.4rem;
+  }
+
+  .note-item {
+    grid-template-columns: 1fr;
+  }
+}
