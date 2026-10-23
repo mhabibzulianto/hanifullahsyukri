@@ -1,781 +1,885 @@
-import { useState } from "react";
+"use client";
 
-const NAV_GROUPS = [
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowUpRight,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Home,
+  ImageIcon,
+  Info,
+  LogOut,
+  Mail,
+  MessageSquareText,
+  MonitorSmartphone,
+  Plus,
+  RefreshCw,
+  Search,
+  UserRound,
+  X,
+} from "lucide-react";
+import { getSupabaseClient } from "./lib/supabase";
+import "./components/dashboard/dashboard.css";
+
+const groups = [
   {
     items: [
-      { id: "dasbor", label: "Dasbor", icon: LayoutDashboard },
+      { id: "dasbor", label: "Beranda", icon: Home },
       { id: "artikel", label: "Artikel", icon: FileText },
-      { id: "media", label: "Media", icon: Image },
+      { id: "media", label: "Media", icon: ImageIcon },
     ],
   },
   {
     label: "Pembaca",
-    items: [{ id: "komentar", label: "Komentar", icon: MessageSquare }],
+    items: [{ id: "komentar", label: "Komentar", icon: MessageSquareText }],
   },
   {
     label: "Setting",
     items: [
-      { id: "halaman-utama", label: "Halaman Utama", icon: Home },
+      { id: "halaman-utama", label: "Halaman utama", icon: MonitorSmartphone },
       { id: "tentang", label: "Tentang", icon: Info },
       { id: "kontak", label: "Kontak", icon: Mail },
     ],
   },
 ];
+const labels = { draft: "Draft", published: "Terbit" };
+const date = (value) =>
+  value
+    ? new Intl.DateTimeFormat("id-ID", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: "Asia/Jakarta",
+      }).format(new Date(value))
+    : "—";
 
-function LayoutDashboard({ size = 16, className = "", style }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      <rect width="7" height="9" x="3" y="3" rx="1" />
-      <rect width="7" height="5" x="14" y="3" rx="1" />
-      <rect width="7" height="9" x="14" y="12" rx="1" />
-      <rect width="7" height="5" x="3" y="16" rx="1" />
-    </svg>
-  );
+function RichContent({ value }) {
+  if (value?.type === "doc") return <RichContent value={value.content || []} />;
+  if (!Array.isArray(value))
+    return <p>Isi artikel belum tersedia dalam format preview.</p>;
+  return value.map((node, index) => {
+    if (!node || typeof node !== "object") return null;
+    if (typeof node.text === "string") {
+      let text = node.text;
+      if (node.bold) text = <strong>{text}</strong>;
+      if (node.italic) text = <em>{text}</em>;
+      if (node.underline) text = <u>{text}</u>;
+      if (node.strikethrough) text = <s>{text}</s>;
+      if (node.code) text = <code>{text}</code>;
+      for (const mark of node.marks || []) {
+        if (mark.type === "bold") text = <strong>{text}</strong>;
+        if (mark.type === "italic") text = <em>{text}</em>;
+        if (mark.type === "underline") text = <u>{text}</u>;
+        if (mark.type === "strike") text = <s>{text}</s>;
+      }
+      return <span key={index}>{text}</span>;
+    }
+    const tiptapTags = { paragraph: "p", heading: `h${Math.min(6, Math.max(2, node.attrs?.level || 2))}`, bulletList: "ul", orderedList: "ol", listItem: "li", pullQuote: "blockquote", marginalia: "aside", arabicBlock: "div", quranBlock: "blockquote" };
+    if (node.type === "footnote") return <sup key={index} title={node.attrs?.text}>*</sup>;
+    if (node.type === "hardBreak") return <br key={index} />;
+    if (node.type === "horizontalRule") return <hr key={index} />;
+    if (["image", "video", "audio", "document", "youtube"].includes(node.type)) return <p key={index}>[{node.type}: {node.attrs?.alt || node.attrs?.filename || node.attrs?.src}]</p>;
+    const Tag = tiptapTags[node.type] || ([
+      "p",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "blockquote",
+      "ul",
+      "ol",
+      "li",
+    ].includes(node.type)
+      ? node.type
+      : "p");
+    return (
+      <Tag key={index} dir={["arabicBlock", "quranBlock"].includes(node.type) ? "rtl" : undefined}>
+        <RichContent value={node.content || node.children || []} />
+      </Tag>
+    );
+  });
 }
-
-function FileText({ size = 16, className = "", style }) {
+function Heading({ title, description, onCreate }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-      <path d="M10 9H8" />
-      <path d="M16 13H8" />
-      <path d="M16 17H8" />
-    </svg>
-  );
-}
-
-function Image({ size = 16, className = "", style }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-      <circle cx="9" cy="9" r="2" />
-      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-    </svg>
-  );
-}
-
-function MessageSquare({ size = 16, className = "", style }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
-  );
-}
-
-function Home({ size = 16, className = "", style }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
-    </svg>
-  );
-}
-
-function Info({ size = 16, className = "", style }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 16v-4" />
-      <path d="M12 8h.01" />
-    </svg>
-  );
-}
-
-function Mail({ size = 16, className = "", style }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      <rect width="20" height="16" x="2" y="4" rx="2" />
-      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-    </svg>
-  );
-}
-
-function User({ size = 16, className = "", style }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  );
-}
-
-function LogOut({ size = 16, className = "", style }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-      <polyline points="16 17 21 12 16 7" />
-      <line x1="21" x2="9" y1="12" y2="12" />
-    </svg>
-  );
-}
-
-function ChevronDown({ size = 14, className = "", style }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
-
-function Menu({ size = 20, className = "", style }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      <line x1="4" x2="20" y1="12" y2="12" />
-      <line x1="4" x2="20" y1="6" y2="6" />
-      <line x1="4" x2="20" y1="18" y2="18" />
-    </svg>
-  );
-}
-
-function Bell({ size = 18, className = "", style }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-    </svg>
-  );
-}
-
-function Users({ size = 20, className = "", style }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  );
-}
-
-function Eye({ size = 20, className = "", style }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function DasborPage() {
-  const stats = [
-    { label: "Total Artikel", value: "12", change: "+3", icon: FileText, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "Total Pembaca", value: "8.7K", change: "+18%", icon: Users, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { label: "Komentar Baru", value: "21", change: "+7", icon: MessageSquare, color: "text-orange-600", bg: "bg-orange-50" },
-    { label: "Tampilan Hari Ini", value: "1,284", change: "+11%", icon: Eye, color: "text-violet-600", bg: "bg-violet-50" },
-  ];
-
-  const recentArticles = [
-    { title: "Menata Niat dalam Menuntut Ilmu", author: "Hanifullah Syukri", views: "1.2K", date: "2 jam lalu", status: "Terbit" },
-    { title: "Catatan Tadabbur: Surah Al-Mulk", author: "Hanifullah Syukri", views: "876", date: "5 jam lalu", status: "Terbit" },
-    { title: "Membangun Kebiasaan Menulis Harian", author: "Hanifullah Syukri", views: "543", date: "1 hari lalu", status: "Draf" },
-    { title: "Teknologi sebagai Sarana Dakwah", author: "Hanifullah Syukri", views: "2.1K", date: "2 hari lalu", status: "Terbit" },
-  ];
-
-  return (
-    <div className="space-y-6">
+    <header className="hs-heading">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Dasbor</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Ringkasan aktivitas blog Hanifullah Syukri.
-        </p>
+        <p className="hs-kicker">RUANG REDAKSI</p>
+        <h1>{title}</h1>
+        <p>{description}</p>
       </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
-          >
-            <div className={`${stat.bg} ${stat.color} rounded-lg p-3`}>
-              <stat.icon size={20} />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">{stat.label}</p>
-              <p className="text-xl font-bold text-gray-900">{stat.value}</p>
-              <p className="text-xs font-medium text-emerald-600">{stat.change} bulan ini</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-          <h2 className="text-sm font-semibold text-gray-800">Artikel Terbaru</h2>
-          <button className="text-xs font-medium text-blue-600 hover:underline">Lihat semua</button>
-        </div>
-        <div className="divide-y divide-gray-50">
-          {recentArticles.map((article) => (
-            <div
-              key={article.title}
-              className="flex items-center gap-4 px-6 py-3.5 transition-colors hover:bg-gray-50"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-gray-900">{article.title}</p>
-                <p className="text-xs text-gray-400">{article.author} • {article.date}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1 text-xs text-gray-500">
-                  <Eye size={13} />
-                  {article.views}
-                </span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                    article.status === "Terbit"
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-gray-100 text-gray-500"
-                  }`}
-                >
-                  {article.status}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+      {onCreate && (
+        <button className="hs-primary" onClick={onCreate}>
+          <Plus size={17} />
+          Artikel baru
+        </button>
+      )}
+    </header>
   );
 }
 
-function PlaceholderPage({ title, description }) {
-  return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
-        <p className="mt-1 text-sm text-gray-500">{description}</p>
-      </div>
-      <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-          <FileText size={28} className="text-gray-400" />
-        </div>
-        <p className="text-sm font-medium text-gray-600">Belum ada konten</p>
-        <p className="mt-1 text-xs text-gray-400">Halaman ini sedang dalam pengembangan.</p>
-      </div>
-    </div>
-  );
-}
-
-const PAGE_CONTENT = {
-  dasbor: () => <DasborPage />,
-  artikel: () => <PlaceholderPage title="Artikel" description="Kelola seluruh tulisan blog." />,
-  media: () => <PlaceholderPage title="Media" description="Kelola gambar, ilustrasi, dan dokumen." />,
-  komentar: () => <PlaceholderPage title="Komentar" description="Moderasi komentar dari pembaca." />,
-  "halaman-utama": () => (
-    <PlaceholderPage
-      title="Halaman Utama"
-      description="Atur hero, artikel unggulan, dan CTA di beranda."
-    />
-  ),
-  tentang: () => <PlaceholderPage title="Tentang" description="Edit profil dan cerita singkat penulis." />,
-  kontak: () => <PlaceholderPage title="Kontak" description="Kelola informasi kontak dan formulir." />,
-  profil: () => <PlaceholderPage title="Profil" description="Atur akun admin Hanifullah Syukri." />,
-};
-
-export default function AdminDashboard() {
+export default function AdminDashboard({
+  currentUser,
+  onLogout,
+  isLoggingOut = false,
+  onCreateArticle,
+}) {
   const [active, setActive] = useState("dasbor");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [profileOpen, setProfileOpen] = useState(false);
+  const [articles, setArticles] = useState([]);
+  const [localDraft, setLocalDraft] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("");
+  const [topic, setTopic] = useState("");
+  const [page, setPage] = useState(1);
+  const [preview, setPreview] = useState(null);
+  const [homepageSettings, setHomepageSettings] = useState({
+    featured_post_id: "",
+    quote_text:
+      "Tulisan yang baik tidak hanya selesai dibaca. Ia tinggal lebih lama di dalam cara kita melihat hidup.",
+    quote_reference: "Hanifullah Syukri — Catatan Editorial",
+  });
+  const [homepageSaving, setHomepageSaving] = useState(false);
+  const [homepageMessage, setHomepageMessage] = useState("");
+  const menuRef = useRef(null);
+  const previewRef = useRef(null);
+  const previewTriggerRef = useRef(null);
+  const displayName =
+    currentUser?.user_metadata?.full_name || "Hanifullah Syukri";
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 
-  const ActivePage = PAGE_CONTENT[active] || PAGE_CONTENT.dasbor;
+  useEffect(() => {
+    const saved = window.localStorage.getItem("hs-admin-active-tab");
+    if (
+      [
+        ...groups.flatMap((group) => group.items.map((item) => item.id)),
+        "profil",
+      ].includes(saved)
+    )
+      setActive(saved);
+    try {
+      const draft = JSON.parse(
+        window.sessionStorage.getItem("hs-editor-draft") || "null",
+      );
+      if (draft?.title || draft?.body?.replace(/<[^>]*>/g, "").trim())
+        setLocalDraft(draft);
+    } catch {
+      /* A malformed browser draft must not prevent loading the dashboard. */
+    }
+  }, []);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError("");
+      try {
+        const { data, error: loadError } = await getSupabaseClient()
+          .from("posts")
+          .select(
+            "id,title,slug,topic,excerpt,status,updated_at,created_at,content,tags,main_image_url",
+          )
+          .eq("author_id", currentUser.id)
+          .order("updated_at", { ascending: false });
+        if (loadError) throw loadError;
+        if (!cancelled) setArticles(data || []);
+      } catch {
+        if (!cancelled)
+          setError(
+            "Artikel belum dapat dimuat. Periksa koneksi, lalu coba lagi.",
+          );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.id]);
+  useEffect(() => {
+    let cancelled = false;
+    async function loadHomepageSettings() {
+      const { data } = await getSupabaseClient()
+        .from("homepage_settings")
+        .select("featured_post_id,quote_text,quote_reference")
+        .eq("id", "main")
+        .maybeSingle();
+      if (!cancelled && data) {
+        setHomepageSettings((current) => ({ ...current, ...data }));
+      }
+    }
+    loadHomepageSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  useEffect(() => {
+    if (preview) previewRef.current?.showModal();
+  }, [preview]);
 
-  return (
-    <div
-      style={{
-        fontFamily: "'DM Sans', 'Geist', system-ui, sans-serif",
-        minHeight: "100vh",
-        background: "#f8f9fb",
-        display: "flex",
-      }}
-    >
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap');
-        * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #e2e5ea; border-radius: 4px; }
-        button { cursor: pointer; border: none; background: none; font-family: inherit; }
-      `}</style>
-
-      <aside
-        style={{
-          width: sidebarOpen ? 240 : 0,
-          minWidth: sidebarOpen ? 240 : 0,
-          background: "#ffffff",
-          borderRight: "1px solid #eaecf0",
-          display: "flex",
-          flexDirection: "column",
-          transition: "all 0.2s ease",
-          overflow: "hidden",
-          height: "100vh",
-          position: "sticky",
-          top: 0,
-          flexShrink: 0,
-        }}
+  function navigate(id) {
+    setActive(id);
+    window.localStorage.setItem("hs-admin-active-tab", id);
+    menuRef.current?.close();
+  }
+  async function saveHomepageSettings(event) {
+    event.preventDefault();
+    setHomepageSaving(true);
+    setHomepageMessage("");
+    const { error: saveError } = await getSupabaseClient()
+      .from("homepage_settings")
+      .upsert(
+        {
+          id: "main",
+          featured_post_id: homepageSettings.featured_post_id || null,
+          quote_text: homepageSettings.quote_text.trim(),
+          quote_reference: homepageSettings.quote_reference.trim(),
+          updated_by: currentUser.id,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" },
+      );
+    setHomepageMessage(
+      saveError
+        ? "Pengaturan belum dapat disimpan. Pastikan migrasi homepage_settings sudah dijalankan."
+        : "Pengaturan halaman utama tersimpan.",
+    );
+    setHomepageSaving(false);
+  }
+  function openPreview(article, event) {
+    previewTriggerRef.current = event.currentTarget;
+    setPreview(article);
+  }
+  const filtered = useMemo(
+    () =>
+      articles.filter(
+        (article) =>
+          (!status || article.status === status) &&
+          (!topic || article.topic === topic) &&
+          (!query ||
+            `${article.title} ${article.excerpt}`
+              .toLocaleLowerCase("id")
+              .includes(query.toLocaleLowerCase("id"))),
+      ),
+    [articles, query, status, topic],
+  );
+  const pages = Math.max(1, Math.ceil(filtered.length / 10));
+  const currentPage = Math.min(page, pages);
+  const rows = filtered.slice((currentPage - 1) * 10, currentPage * 10);
+  const topics = [
+    ...new Set(articles.map((article) => article.topic).filter(Boolean)),
+  ].sort();
+  const published = articles.filter(
+    (article) => article.status === "published",
+  ).length;
+  function navItems(items) {
+    return items.map((item) => (
+      <button
+        key={item.id}
+        className={`hs-nav-link${active === item.id ? " is-active" : ""}`}
+        aria-current={active === item.id ? "page" : undefined}
+        onClick={() => navigate(item.id)}
       >
-        <div
-          style={{
-            padding: "18px 16px 14px",
-            borderBottom: "1px solid #f2f4f7",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              background: "linear-gradient(135deg, #1a1a2e, #16213e)",
-              borderRadius: 8,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+        <item.icon size={17} />
+        <span>{item.label}</span>
+      </button>
+    ));
+  }
+  function articleRows(list) {
+    return list.map((article) => (
+      <tr key={article.id}>
+        <td>
+          <button
+            className="hs-title-link"
+            onClick={(event) => openPreview(article, event)}
+          >
+            {article.title || "Tanpa judul"}
+          </button>
+          <p className="hs-excerpt">{article.excerpt || `/${article.slug}`}</p>
+        </td>
+        <td>
+          <span className={`hs-status hs-status-${article.status}`}>
+            {labels[article.status] || article.status}
+          </span>
+        </td>
+        <td>{article.topic || "Belum ditentukan"}</td>
+        <td>
+          <time dateTime={article.updated_at}>{date(article.updated_at)}</time>
+        </td>
+        <td>
+          <button
+            className="hs-icon-button"
+            aria-label={`Preview ${article.title || "artikel"}`}
+            onClick={(event) => openPreview(article, event)}
+          >
+            <ArrowUpRight size={18} />
+          </button>
+        </td>
+      </tr>
+    ));
+  }
+  function emptyState() {
+    if (loading)
+      return (
+        <div className="hs-empty" role="status">
+          <div className="hs-skeleton" />
+          <div className="hs-skeleton" />
+          <div className="hs-skeleton" />
+          <span>Memuat artikel…</span>
+        </div>
+      );
+    if (error)
+      return (
+        <div className="hs-empty" role="alert">
+          <FileText size={30} />
+          <h2>Daftar artikel belum tersedia</h2>
+          <p>{error}</p>
+          <button
+            className="hs-secondary"
+            onClick={() => window.location.reload()}
+          >
+            <RefreshCw size={16} />
+            Coba lagi
+          </button>
+        </div>
+      );
+    return (
+      <div className="hs-empty">
+        <FileText size={32} />
+        <h2>
+          {query || status || topic
+            ? "Tidak ada artikel yang cocok"
+            : "Tulisan pertama dimulai di sini"}
+        </h2>
+        <p>
+          {query || status || topic
+            ? "Coba kata kunci atau filter lain."
+            : "Buat draft untuk mulai menyusun tulisan baru."}
+        </p>
+        {query || status || topic ? (
+          <button
+            className="hs-secondary"
+            onClick={() => {
+              setQuery("");
+              setStatus("");
+              setTopic("");
             }}
           >
-            <span style={{ color: "white", fontWeight: 700, fontSize: 14 }}>H</span>
-          </div>
-          <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: "#111827", lineHeight: 1.2 }}>
-              Admin Blog
-            </p>
-            <p style={{ fontSize: 11, color: "#9ca3af" }}>Hanifullah Syukri</p>
-          </div>
-        </div>
+            Hapus filter
+          </button>
+        ) : (
+          <button className="hs-primary" onClick={onCreateArticle}>
+            Buat artikel pertama
+          </button>
+        )}
+      </div>
+    );
+  }
+  function table(list) {
+    return (
+      <div
+        className="hs-table-scroll"
+        role="region"
+        aria-label="Daftar artikel, gulir untuk melihat semua kolom"
+        tabIndex={0}
+      >
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Judul artikel</th>
+              <th scope="col">Status</th>
+              <th scope="col">Topik</th>
+              <th scope="col">Diperbarui</th>
+              <th scope="col">
+                <span className="sr-only">Preview</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>{articleRows(list)}</tbody>
+        </table>
+      </div>
+    );
+  }
+  const metadata = {
+    media: ["Media", "Gambar dan dokumen untuk tulisan Anda."],
+    komentar: ["Komentar", "Percakapan dengan pembaca."],
+    tentang: ["Tentang", "Profil dan cerita singkat penulis."],
+    kontak: ["Kontak", "Informasi kontak untuk pembaca."],
+  };
 
-        <nav style={{ flex: 1, overflowY: "auto", padding: "12px 10px" }}>
-          {NAV_GROUPS.map((group, groupIndex) => (
-            <div key={groupIndex} style={{ marginBottom: 20 }}>
-              {group.label ? (
-                <p
-                  style={{
-                    fontSize: 10.5,
-                    fontWeight: 600,
-                    color: "#9ca3af",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    padding: "0 8px",
-                    marginBottom: 4,
-                  }}
-                >
+  return (
+    <div className="hs-dashboard">
+      <a className="hs-skip-link" href="#hs-content">
+        Langsung ke konten
+      </a>
+      <aside className="hs-sidebar">
+        <a className="hs-brand" href="/">
+          <span className="hs-monogram">H</span>
+          <span>
+            <strong>Editorial</strong>
+            <small>Hanifullah Syukri</small>
+          </span>
+        </a>
+        <nav aria-label="Navigasi dashboard">
+          {groups.map((group, index) =>
+            group.label ? (
+              <details className="hs-nav-group" key={group.label} open>
+                <summary>
                   {group.label}
-                </p>
-              ) : null}
-              {group.items.map((item) => {
-                const isActive = active === item.id;
-                return (
+                  <ChevronDown size={16} />
+                </summary>
+                <div>{navItems(group.items)}</div>
+              </details>
+            ) : (
+              <div className="hs-nav-group" key={index}>
+                {navItems(group.items)}
+              </div>
+            ),
+          )}
+        </nav>
+        <details className="hs-profile">
+          <summary>
+            <span className="hs-avatar">{initials}</span>
+            <span>
+              <strong>{displayName}</strong>
+              <small>Penulis</small>
+            </span>
+            <ChevronDown size={16} />
+          </summary>
+          <div>
+            {navItems([
+              { id: "profil", label: "Pengaturan akun", icon: UserRound },
+            ])}
+            <button
+              className="hs-nav-link"
+              onClick={onLogout}
+              disabled={isLoggingOut}
+            >
+              <LogOut size={17} />
+              {isLoggingOut ? "Keluar…" : "Logout"}
+            </button>
+          </div>
+        </details>
+      </aside>
+      <main id="hs-content" className="hs-main">
+        {active === "dasbor" && (
+          <>
+            <Heading
+              title="Beranda"
+              description={`Selamat datang, ${displayName}. Ruang untuk merawat ide dan menyusun tulisan.`}
+              onCreate={onCreateArticle}
+            />
+            <section className="hs-stats" aria-label="Ringkasan artikel">
+              {[
+                ["Semua artikel", articles.length],
+                ["Sudah terbit", published],
+                ["Draft", articles.length - published],
+              ].map(([label, count]) => (
+                <div key={label}>
+                  <p>{label}</p>
+                  <strong>
+                    {loading || error ? "—" : count.toLocaleString("id-ID")}
+                  </strong>
+                </div>
+              ))}
+            </section>
+            {localDraft && (
+              <section className="hs-draft-banner">
+                <div>
+                  <p className="hs-kicker">LANJUTKAN MENULIS</p>
+                  <h2>{localDraft.title || "Draft tanpa judul"}</h2>
+                  <p>Draft tersimpan di sesi browser ini.</p>
+                </div>
+                <a className="hs-secondary" href="/admin/editor">
+                  Buka draft
+                  <ArrowUpRight size={16} />
+                </a>
+              </section>
+            )}
+            <section className="hs-panel">
+              <div className="hs-panel-heading">
+                <h2>Artikel terbaru</h2>
+                <button
+                  className="hs-text-button"
+                  onClick={() => navigate("artikel")}
+                >
+                  Lihat semua
+                  <ArrowUpRight size={16} />
+                </button>
+              </div>
+              {!loading && !error && articles.length
+                ? table(articles.slice(0, 5))
+                : emptyState()}
+            </section>
+          </>
+        )}
+        {active === "artikel" && (
+          <>
+            <Heading
+              title="Artikel"
+              description="Ruang untuk draft dan tulisan Anda yang sudah terbit."
+              onCreate={onCreateArticle}
+            />
+            {localDraft && (
+              <div className="hs-local-notice">
+                <span>
+                  Draft browser:{" "}
+                  <strong>{localDraft.title || "Tanpa judul"}</strong>
+                </span>
+                <a href="/admin/editor">
+                  Lanjutkan menulis
+                  <ArrowUpRight size={15} />
+                </a>
+              </div>
+            )}
+            <section className="hs-panel" aria-label="Daftar artikel">
+              <nav className="hs-tabs" aria-label="Filter status artikel">
+                {[
+                  ["", "Semua artikel"],
+                  ["draft", "Draft"],
+                  ["published", "Terbit"],
+                ].map(([value, label]) => (
                   <button
-                    key={item.id}
-                    onClick={() => setActive(item.id)}
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 9,
-                      padding: "7px 10px",
-                      borderRadius: 7,
-                      fontSize: 13.5,
-                      fontWeight: isActive ? 600 : 400,
-                      color: isActive ? "#111827" : "#6b7280",
-                      background: isActive ? "#f3f4f6" : "transparent",
-                      marginBottom: 1,
-                      transition: "all 0.15s",
-                      textAlign: "left",
-                    }}
-                    onMouseEnter={(event) => {
-                      if (!isActive) event.currentTarget.style.background = "#f9fafb";
-                    }}
-                    onMouseLeave={(event) => {
-                      if (!isActive) event.currentTarget.style.background = "transparent";
+                    key={value}
+                    aria-current={status === value ? "page" : undefined}
+                    onClick={() => {
+                      setStatus(value);
+                      setPage(1);
                     }}
                   >
-                    <item.icon size={16} />
-                    {item.label}
-                    {isActive ? (
-                      <div
-                        style={{
-                          marginLeft: "auto",
-                          width: 4,
-                          height: 4,
-                          borderRadius: "50%",
-                          background: "#111827",
-                        }}
-                      />
-                    ) : null}
+                    {label}
                   </button>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-
-        <div style={{ borderTop: "1px solid #f2f4f7", padding: "10px" }}>
-          <div style={{ position: "relative" }}>
-            <button
-              onClick={() => setProfileOpen(!profileOpen)}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 9,
-                padding: "8px 10px",
-                borderRadius: 8,
-                background: profileOpen ? "#f3f4f6" : "transparent",
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={(event) => {
-                if (!profileOpen) event.currentTarget.style.background = "#f9fafb";
-              }}
-              onMouseLeave={(event) => {
-                if (!profileOpen) event.currentTarget.style.background = "transparent";
-              }}
-            >
-              <div
-                style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, #667eea, #764ba2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <span style={{ color: "white", fontSize: 12, fontWeight: 700 }}>HS</span>
+                ))}
+              </nav>
+              <div className="hs-filters">
+                <label className="hs-search">
+                  <span>Cari judul</span>
+                  <div>
+                    <Search size={17} />
+                    <input
+                      type="search"
+                      value={query}
+                      onChange={(event) => {
+                        setQuery(event.target.value);
+                        setPage(1);
+                      }}
+                      placeholder="Cari artikel…"
+                      maxLength={120}
+                    />
+                  </div>
+                </label>
+                <label>
+                  <span>Topik</span>
+                  <select
+                    value={topic}
+                    onChange={(event) => {
+                      setTopic(event.target.value);
+                      setPage(1);
+                    }}
+                  >
+                    <option value="">Semua topik</option>
+                    {topics.map((value) => (
+                      <option key={value}>{value}</option>
+                    ))}
+                  </select>
+                </label>
+                {(query || topic) && (
+                  <button
+                    className="hs-text-button"
+                    onClick={() => {
+                      setQuery("");
+                      setTopic("");
+                      setPage(1);
+                    }}
+                  >
+                    Reset
+                  </button>
+                )}
               </div>
-              <div style={{ flex: 1, textAlign: "left" }}>
-                <p style={{ fontSize: 12.5, fontWeight: 600, color: "#111827" }}>
-                  Hanifullah Syukri
-                </p>
-                <p style={{ fontSize: 11, color: "#9ca3af" }}>admin@hanifullahsyukri.id</p>
-              </div>
-              <ChevronDown
-                size={14}
-                style={{
-                  color: "#9ca3af",
-                  transform: profileOpen ? "rotate(180deg)" : "rotate(0deg)",
-                  transition: "transform 0.2s",
-                }}
-              />
-            </button>
-
-            {profileOpen ? (
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: "calc(100% + 4px)",
-                  left: 0,
-                  right: 0,
-                  background: "white",
-                  border: "1px solid #eaecf0",
-                  borderRadius: 10,
-                  overflow: "hidden",
-                  boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
-                }}
-              >
-                <button
-                  onClick={() => {
-                    setActive("profil");
-                    setProfileOpen(false);
-                  }}
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 9,
-                    padding: "9px 12px",
-                    fontSize: 13,
-                    color: "#374151",
-                    transition: "background 0.1s",
-                  }}
-                  onMouseEnter={(event) => {
-                    event.currentTarget.style.background = "#f9fafb";
-                  }}
-                  onMouseLeave={(event) => {
-                    event.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  <User size={15} /> Profil
-                </button>
-                <div style={{ height: 1, background: "#f2f4f7" }} />
-                <button
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 9,
-                    padding: "9px 12px",
-                    fontSize: 13,
-                    color: "#dc2626",
-                    transition: "background 0.1s",
-                  }}
-                  onMouseEnter={(event) => {
-                    event.currentTarget.style.background = "#fef2f2";
-                  }}
-                  onMouseLeave={(event) => {
-                    event.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  <LogOut size={15} /> Logout
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </aside>
-
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <header
-          style={{
-            height: 56,
-            background: "white",
-            borderBottom: "1px solid #eaecf0",
-            display: "flex",
-            alignItems: "center",
-            padding: "0 20px",
-            gap: 12,
-            position: "sticky",
-            top: 0,
-            zIndex: 10,
-          }}
-        >
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            style={{ padding: 6, borderRadius: 7, color: "#6b7280", display: "flex" }}
-            onMouseEnter={(event) => {
-              event.currentTarget.style.background = "#f3f4f6";
-            }}
-            onMouseLeave={(event) => {
-              event.currentTarget.style.background = "transparent";
-            }}
-          >
-            <Menu size={18} />
-          </button>
-
-          <div style={{ flex: 1 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                background: "#f9fafb",
-                border: "1px solid #eaecf0",
-                borderRadius: 8,
-                padding: "6px 12px",
-                maxWidth: 280,
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-              </svg>
-              <span style={{ fontSize: 13, color: "#9ca3af" }}>Cari sesuatu...</span>
-            </div>
-          </div>
-
-          <button
-            style={{ position: "relative", padding: 7, borderRadius: 8, color: "#6b7280", display: "flex" }}
-            onMouseEnter={(event) => {
-              event.currentTarget.style.background = "#f3f4f6";
-            }}
-            onMouseLeave={(event) => {
-              event.currentTarget.style.background = "transparent";
-            }}
-          >
-            <Bell size={18} />
-            <span
-              style={{
-                position: "absolute",
-                top: 6,
-                right: 6,
-                width: 7,
-                height: 7,
-                background: "#ef4444",
-                borderRadius: "50%",
-                border: "1.5px solid white",
-              }}
+              {!loading && !error && rows.length ? (
+                <>
+                  <div className="hs-result-count">
+                    <strong>
+                      {filtered.length.toLocaleString("id-ID")} artikel
+                    </strong>
+                    <span>Terakhir diperbarui</span>
+                  </div>
+                  {table(rows)}
+                  <footer className="hs-pagination">
+                    <p>
+                      Menampilkan {(currentPage - 1) * 10 + 1}–
+                      {Math.min(currentPage * 10, filtered.length)} dari{" "}
+                      {filtered.length} artikel
+                    </p>
+                    <nav aria-label="Halaman artikel">
+                      <button
+                        className="hs-icon-button"
+                        aria-label="Halaman sebelumnya"
+                        disabled={currentPage <= 1}
+                        onClick={() => setPage(currentPage - 1)}
+                      >
+                        <ChevronLeft size={17} />
+                      </button>
+                      <span>
+                        {currentPage} / {pages}
+                      </span>
+                      <button
+                        className="hs-icon-button"
+                        aria-label="Halaman berikutnya"
+                        disabled={currentPage >= pages}
+                        onClick={() => setPage(currentPage + 1)}
+                      >
+                        <ChevronRight size={17} />
+                      </button>
+                    </nav>
+                  </footer>
+                </>
+              ) : (
+                emptyState()
+              )}
+            </section>
+            <p className="hs-scope-note">
+              Hanya artikel milik Anda yang ditampilkan. Tanggal mengikuti zona
+              waktu Jakarta (UTC+7).
+            </p>
+          </>
+        )}
+        {active === "halaman-utama" && (
+          <>
+            <Heading
+              title="Halaman utama"
+              description="Pilih satu artikel utama dan satu quote yang tampil di landing page."
             />
-          </button>
-
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, #667eea, #764ba2)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-            }}
-          >
-            <span style={{ color: "white", fontSize: 12, fontWeight: 700 }}>HS</span>
-          </div>
-        </header>
-
-        <main
-          style={{ flex: 1, padding: "28px", overflowY: "auto" }}
-          onClick={() => {
-            if (profileOpen) setProfileOpen(false);
-          }}
+            <form className="hs-panel hs-home-settings" onSubmit={saveHomepageSettings}>
+              <div className="hs-settings-section">
+                <div>
+                  <p className="hs-kicker">ARTIKEL PILIHAN</p>
+                  <h2>Sorotan utama</h2>
+                  <p>Artikel ini menjadi headline pertama yang dilihat pembaca.</p>
+                </div>
+                <label>
+                  <span>Pilih artikel terbit</span>
+                  <select
+                    value={homepageSettings.featured_post_id || ""}
+                    onChange={(event) =>
+                      setHomepageSettings((current) => ({
+                        ...current,
+                        featured_post_id: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">Artikel terbit terbaru</option>
+                    {articles
+                      .filter((article) => article.status === "published")
+                      .map((article) => (
+                        <option key={article.id} value={article.id}>
+                          {article.title}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              </div>
+              <div className="hs-settings-section">
+                <div>
+                  <p className="hs-kicker">QUOTE PILIHAN</p>
+                  <h2>Kutipan editorial</h2>
+                  <p>Quote tampil setelah daftar artikel terbaru.</p>
+                </div>
+                <div className="hs-settings-fields">
+                  <label>
+                    <span>Isi quote</span>
+                    <textarea
+                      rows="5"
+                      required
+                      maxLength="360"
+                      value={homepageSettings.quote_text}
+                      onChange={(event) =>
+                        setHomepageSettings((current) => ({
+                          ...current,
+                          quote_text: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Referensi</span>
+                    <input
+                      required
+                      maxLength="140"
+                      value={homepageSettings.quote_reference}
+                      onChange={(event) =>
+                        setHomepageSettings((current) => ({
+                          ...current,
+                          quote_reference: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+              <footer className="hs-settings-footer">
+                {homepageMessage && <p role="status">{homepageMessage}</p>}
+                <button className="hs-primary" disabled={homepageSaving}>
+                  {homepageSaving ? "Menyimpan…" : "Simpan pengaturan"}
+                </button>
+              </footer>
+            </form>
+          </>
+        )}
+        {metadata[active] && (
+          <>
+            <Heading
+              title={metadata[active][0]}
+              description={metadata[active][1]}
+            />
+            <section className="hs-panel hs-empty">
+              <FileText size={30} />
+              <h2>Belum tersedia</h2>
+              <p>
+                Pengelolaan {metadata[active][0].toLowerCase()} belum diaktifkan
+                di situs ini.
+              </p>
+              <button
+                className="hs-secondary"
+                onClick={() => navigate("dasbor")}
+              >
+                Kembali ke beranda
+              </button>
+            </section>
+          </>
+        )}
+        {active === "profil" && (
+          <>
+            <Heading
+              title="Pengaturan akun"
+              description="Informasi akun penulis Anda."
+            />
+            <section className="hs-panel hs-account">
+              <span className="hs-avatar">{initials}</span>
+              <h2>{displayName}</h2>
+              <p>{currentUser?.email}</p>
+              <button
+                className="hs-secondary"
+                onClick={onLogout}
+                disabled={isLoggingOut}
+              >
+                <LogOut size={17} />
+                {isLoggingOut ? "Keluar…" : "Logout"}
+              </button>
+            </section>
+          </>
+        )}
+      </main>
+      <nav className="hs-mobile-nav" aria-label="Navigasi utama mobile">
+        {navItems([
+          groups[0].items[0],
+          groups[0].items[1],
+          groups[0].items[2],
+          groups[1].items[0],
+        ])}
+        <button
+          className="hs-nav-link"
+          aria-label="Buka menu akun"
+          aria-haspopup="dialog"
+          onClick={() => menuRef.current?.showModal()}
         >
-          <ActivePage />
-        </main>
-      </div>
+          <span className="hs-avatar">{initials}</span>
+          <span>Akun</span>
+        </button>
+      </nav>
+      <dialog
+        className="hs-menu-dialog"
+        ref={menuRef}
+        aria-labelledby="hs-menu-title"
+        onClick={(event) => {
+          if (event.target === event.currentTarget) menuRef.current?.close();
+        }}
+      >
+        <div className="hs-dialog-header">
+          <div>
+            <h2 id="hs-menu-title">{displayName}</h2>
+            <p>Penulis</p>
+          </div>
+          <button
+            className="hs-icon-button"
+            aria-label="Tutup menu"
+            onClick={() => menuRef.current?.close()}
+          >
+            <X size={21} />
+          </button>
+        </div>
+        <nav aria-label="Menu akun">
+          {navItems([
+            ...groups[2].items,
+            { id: "profil", label: "Pengaturan akun", icon: UserRound },
+          ])}
+          <button
+            className="hs-nav-link"
+            onClick={onLogout}
+            disabled={isLoggingOut}
+          >
+            <LogOut size={18} />
+            {isLoggingOut ? "Keluar…" : "Logout"}
+          </button>
+        </nav>
+      </dialog>
+      <dialog
+        ref={previewRef}
+        className="hs-preview"
+        aria-labelledby="hs-preview-title"
+        onClose={() => {
+          setPreview(null);
+          previewTriggerRef.current?.focus();
+        }}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) previewRef.current?.close();
+        }}
+      >
+        <div className="hs-dialog-header">
+          <span>Preview artikel</span>
+          <button
+            className="hs-icon-button"
+            aria-label="Tutup preview"
+            onClick={() => previewRef.current?.close()}
+          >
+            <X size={22} />
+          </button>
+        </div>
+        {preview && (
+          <article className="hs-preview-body">
+            <p className="hs-kicker">
+              {preview.topic || "ARTIKEL"} ·{" "}
+              {labels[preview.status] || preview.status}
+            </p>
+            <h1 id="hs-preview-title">{preview.title || "Tanpa judul"}</h1>
+            <p className="hs-preview-meta">
+              {displayName} · {date(preview.updated_at)}
+            </p>
+            {preview.excerpt && (
+              <p className="hs-preview-lead">{preview.excerpt}</p>
+            )}
+            {preview.main_image_url &&
+              /^https?:\/\//i.test(preview.main_image_url) && (
+                <img
+                  src={preview.main_image_url}
+                  alt={preview.title || "Gambar artikel"}
+                />
+              )}
+            <div className="hs-rich-content">
+              <RichContent value={preview.content} />
+            </div>
+          </article>
+        )}
+      </dialog>
     </div>
   );
 }
